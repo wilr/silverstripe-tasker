@@ -2,7 +2,7 @@
 
 namespace Wilr\SilverStripe\Tasker\Tasks;
 
-use Wilr\SilverStripeTasker\Traits\TaskerFormatter;
+use Wilr\SilverStripe\Tasker\Traits\TaskerFormatter;
 use SilverStripe\Dev\BuildTask;
 use SilverStripe\CMS\Model\SiteTree;
 use SilverStripe\Control\Director;
