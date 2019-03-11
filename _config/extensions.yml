@@ -1,0 +1,9 @@
+---
+name: silverstripe-tasker
+---
+SilverStripe\SiteConfig\SiteConfig:
+  extensions:
+    - Wilr\SilverStripe\Tasker\Extensions\TaskerSiteConfigExtension
+SilverStripe\CMS\Model\SiteTree:
+  extensions:
+    - Wilr\SilverStripe\Tasker\Extensions\TaskerSiteTreeExtension
