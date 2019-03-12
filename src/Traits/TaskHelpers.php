@@ -20,7 +20,7 @@ trait TaskHelpers
      * @param array $mapping
      * @param callable $callback
      */
-    public function migrateTableToExistingTable($tableName, $newClass, $mapping = [], $callback = null)
+    public function migrateTableToExistingTable($tableName, $newClass, $mapping = [], $callback = null, $insert = true)
     {
         if ($this->hasTable($tableName)) {
             $data = DB::query("SELECT * FROM $tableName");
@@ -116,9 +116,7 @@ trait TaskHelpers
      */
     public function hasTable($tableName)
     {
-        $tables = DB::table_list();
-
-        return (isset($tables[strtolower($tableName)]));
+        return DB::get_conn()->getSchemaManager()->hasTable($tableName);
     }
 
 
@@ -136,13 +134,17 @@ trait TaskHelpers
 
     protected function tableHasCol($table, $col)
     {
-        $result = DB::query(sprintf(
-            "SHOW COLUMNS FROM `%s` LIKE '%s'",
+        if (!$this->hasTable($table)) {
+            return false;
+        }
+
+        $result = $this->query(sprintf(
+            "SHOW COLUMNS FROM %s LIKE '%s'",
             $table,
             $col
-        ))->value();
+        ));
 
-        if ($result) {
+        if ($result->value()) {
             return true;
         }
 
@@ -218,5 +220,46 @@ trait TaskHelpers
         }
 
         $this->echoProgress();
+    }
+
+    /**
+     * Runs an INSERT or UPDATE query on the provided table depending on if a
+     * record with the ID matches.
+     *
+     * @param string $table
+     * @param int $id
+     * @param array $fields
+     */
+    public function runInsertOrUpdate($table, $id, $fields)
+    {
+        $existing = $this->query(sprintf(
+            'SELECT COUNT(*) FROM %s WHERE ID = %s',
+            $table,
+            (int) $id
+        ))->value();
+
+        $set = implode(', ', array_map(function ($k, $v) {
+            if (is_int($v)) {
+                return "$k = $v";
+            }
+
+            return "$k = '$v'";
+        }, array_keys($fields), $fields));
+
+        if ($existing) {
+            return $this->query(sprintf(
+                'UPDATE %s SET %s WHERE ID = %s',
+                $table,
+                $set,
+                $id
+            ));
+        } else {
+            return $this->query(sprintf(
+                'INSERT INTO %s SET ID = %s, %s',
+                $table,
+                $id,
+                $set
+            ));
+        }
     }
 }

@@ -8,7 +8,9 @@ use Exception;
 
 trait TaskerFormatter
 {
-    protected $quiet;
+    protected $quiet = false;
+
+    protected $verbose = false;
 
     /**
      * @param string $message
