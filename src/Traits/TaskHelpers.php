@@ -23,7 +23,7 @@ trait TaskHelpers
     public function migrateTableToExistingTable($tableName, $newClass, $mapping = [], $callback = null, $insert = true)
     {
         if ($this->hasTable($tableName)) {
-            $data = DB::query("SELECT * FROM $tableName");
+            $data = DB::query("SELECT * FROM $tableName ORDER BY ID");
 
             while ($record = $data->record()) {
                 $baseRecord = $newClass::get()->byId($record['ID']);
@@ -37,9 +37,12 @@ trait TaskHelpers
                     }
 
                     if (!$baseRecord) {
-                        // $this->echoWarning('Cannot find '. $tableName.'#'. $record['ID'] . ' to migrate to '. $newClass);
-
-                        continue;
+                        if ($insert) {
+                            $baseRecord = $newClass::create();
+                            $baseRecord->setField('ID', $record['ID']);
+                        } else {
+                            continue;
+                        }
                     } else {
                         $baseRecord = $baseRecord->newClassInstance($newClass);
                     }
