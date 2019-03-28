@@ -12,6 +12,7 @@ use SilverStripe\Control\Director;
 use SilverStripe\Control\HTTPRequest;
 use SilverStripe\Core\Environment;
 use SilverStripe\Dev\Tasks\MigrateFileTask;
+use SilverStripe\Assets\File;
 
 class TaskerSiteTreeExtension extends DataExtension
 {
