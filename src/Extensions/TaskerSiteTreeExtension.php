@@ -13,9 +13,12 @@ use SilverStripe\Control\HTTPRequest;
 use SilverStripe\Core\Environment;
 use SilverStripe\Dev\Tasks\MigrateFileTask;
 use SilverStripe\Assets\File;
+use Wilr\SilverStripe\Tasker\Traits\TaskHelpers;
 
 class TaskerSiteTreeExtension extends DataExtension
 {
+    use TaskHelpers;
+
     private $run = false;
 
     public function isSilverStripeHosted()
@@ -100,13 +103,14 @@ class TaskerSiteTreeExtension extends DataExtension
                 DB::alteration_message('[Tasker] Syncing files', 'created');
 
                 // correct any PDF files to the
-                DB::query(sprintf(
-                    "
-                    UPDATE File SET ClassName = '%s'
-                    WHERE Filename LIKE '%s'",
-                    File::class,
-                    '%.pdf'
-                ));
+                if ($this->tableHasCol('File', 'Filename')) {
+                    DB::query(sprintf("
+                        UPDATE File SET ClassName = '%s'
+                        WHERE Filename LIKE '%s'",
+                        File::class,
+                        '%.pdf'
+                    ));
+                }
 
                 try {
                     $task = new MigrateFileTask();
