@@ -31,6 +31,9 @@ class TaskerSiteTreeExtension extends DataExtension
 
     public function requireDefaultRecords()
     {
+        Environment::increaseMemoryLimitTo(-1);
+        Environment::increaseTimeLimitTo(-1);
+        
         // script only needs to run once per dev/build.
         if ($this->run) {
             return;
