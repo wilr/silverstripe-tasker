@@ -14,10 +14,12 @@ use SilverStripe\Core\Environment;
 use SilverStripe\Dev\Tasks\MigrateFileTask;
 use SilverStripe\Assets\File;
 use Wilr\SilverStripe\Tasker\Traits\TaskHelpers;
+use Wilr\SilverStripe\Tasker\Traits\TaskerFormatter;
 
 class TaskerSiteTreeExtension extends DataExtension
 {
     use TaskHelpers;
+    use TaskerFormatter;
 
     private $run = false;
 
