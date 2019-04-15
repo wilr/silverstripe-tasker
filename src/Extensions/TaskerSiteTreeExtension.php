@@ -13,6 +13,8 @@ use SilverStripe\Control\HTTPRequest;
 use SilverStripe\Core\Environment;
 use SilverStripe\Dev\Tasks\MigrateFileTask;
 use SilverStripe\Assets\File;
+use Symbiote\QueuedJobs\Jobs\RunBuildTaskJob;
+use Symbiote\QueuedJobs\Services\QueuedJobService;
 use Wilr\SilverStripe\Tasker\Traits\TaskHelpers;
 use Wilr\SilverStripe\Tasker\Traits\TaskerFormatter;
 
@@ -44,6 +46,29 @@ class TaskerSiteTreeExtension extends DataExtension
         $this->run = true;
 
         $state = Config::inst()->get(SiteTree::class, 'migration_on_build');
+
+        $runJobsOnDeploy = Config::inst()->get(SiteTree::class, 'tasker_jobs');
+
+        // run any queued job tasks
+        if ($runJobsOnDeploy) {
+            foreach ($runJobsOnDeploy as $job) {
+                $inst = Injector::inst()->create($job);
+
+                if (!$inst->isEnabled()) {
+                    $message('The task is disabled');
+                    return;
+                }
+
+                $job = new RunBuildTaskJob($job);
+                $jobID = Injector::inst()->get(QueuedJobService::class)->queueJob($job);
+
+                DB::alteration_message(sprintf(
+                    '[Tasker] Migration queuing task %s # %s', 
+                    $inst->getTitle(),
+                    $jobID
+                ));
+            }
+        }
 
         if ($state === false) {
             DB::alteration_message('[Tasker] Migration on build is disabled by config flag.', 'deleted');
