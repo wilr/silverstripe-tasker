@@ -7,6 +7,8 @@ use SilverStripe\Core\Convert;
 use SilverStripe\CMS\Model\SiteTree;
 use SilverStripe\ORM\DataObject;
 use SilverStripe\Versioned\Versioned;
+use Masterminds\HTML5;
+use SilverStripe\Assets\File;
 use Exception;
 
 trait TaskHelpers
@@ -265,4 +267,92 @@ trait TaskHelpers
             ));
         }
     }
+
+    /**
+     * Corrects broken file paths
+     */
+    public function updateFilePathLinks($table, $column)
+    {
+        $records = DB::query("SELECT ID, $column FROM $table WHERE $column LIKE '%assets/%'");
+
+        foreach ($records as $record) {
+            $id = $record['ID'];
+            $content = $record[$column];
+            $html = new HTML5();
+            $doc = $html->loadHTML($content);
+
+            $needsWrite = false;
+
+            foreach ($doc->getElementsByTagName('img') as $img) {
+                // if an image links to assets and is not rewritten to use a short code then we need to add the link
+                // to the short code ID if we can find it.
+                $src = $img->getAttribute('src');
+                $shortcode = $img->getAttribute('data-shortcode');
+                $shortcodeId = $img->getAttribute('data-id');
+
+                if (!$shortcodeId && !$shortcode && $src) {
+                    if (substr($src, 0, 8) === "\/assets\/" || substr($src, 0,7) === 'assets/') {
+                        if (strpos($src, '_resampled/')) {
+                            $parts = explode('/', $src);
+
+                            $file = File::get()->filter([
+                                'Filename:PartialMatch:nocase' => $parts[count($parts) -1]
+                            ])->first();
+                        } else {
+                            $file = File::get()->filter('Filename:PartialMatch:nocase', $src)->first();
+                        }
+
+                        // find the correct ID for the file and attach it to the image if we can.
+                        if ($file) {
+                            $img->setAttribute('data-shortcode', 'image');
+                            $img->setAttribute('data-id', $file->ID);
+
+                            $needsWrite = true;
+                        }
+                    }
+                }
+            }
+
+            if ($needsWrite) {
+                DB::prepared_query("UPDATE \"$table\" SET \"$column\" = ? WHERE \"ID\" = ?", [
+                    $html->saveHTML($doc),
+                    $id
+                ]);
+
+                $this->echoSuccess('Updated '. $id);
+            }
+
+            $this->echoProgress();
+        }
+    }
+
+    /**
+     * For things like invalid values in an enum you get a blank value. Not null
+     * nor empty string '', so you basically can't pick it up. What this does is
+     * loop over all the rows in the table and sets to a default value if it's
+     * not set in PHP
+     *
+     * @param string $table
+     * @param string $column
+     * @param string $defaultValue
+     */
+    protected function setInvalidEnumValuesTo ($table, $column, $defaultValue)
+    {
+        if ($this->hasTable($table)) {
+            $records = $this->performQuery("SELECT * FROM $table");
+
+            foreach ($records as $row) {
+                if (!$row[$column]) {
+                    $this->performQuery(sprintf(
+                        "UPDATE $table SET $column = '%s' WHERE ID = %s",
+                        $defaultValue,
+                        $row['ID']
+                    ))->value();
+                }
+
+                $this->echoProgress();
+            }
+        }
+    }
+
 }
