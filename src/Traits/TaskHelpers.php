@@ -287,12 +287,14 @@ trait TaskHelpers
                 // if an image links to assets and is not rewritten to use a short code then we need to add the link
                 // to the short code ID if we can find it.
                 $src = $img->getAttribute('src');
+
                 $shortcode = $img->getAttribute('data-shortcode');
                 $shortcodeId = $img->getAttribute('data-id');
 
                 if (!$shortcodeId && !$shortcode && $src) {
                     if (substr($src, 0, 8) === "\/assets\/" || substr($src, 0,7) === 'assets/') {
                         if (strpos($src, '_resampled/')) {
+
                             $parts = explode('/', $src);
 
                             $file = File::get()->filter([
@@ -310,6 +312,13 @@ trait TaskHelpers
                             $needsWrite = true;
                         }
                     }
+                } else if (strpos($src, '_resampled/') && $shortcodeId) {
+                    $file = File::get()->byId($shortcodeId);
+
+                    if ($file) {
+                        $needsWrite = true;
+                        $img->setAttribute('src', $file->getURL());
+                    }
                 }
             }
 
@@ -319,7 +328,9 @@ trait TaskHelpers
                     $id
                 ]);
 
-                $this->echoSuccess('Updated '. $id);
+                if ($this->verbose) {
+                    $this->echoSuccess("Updated {$table}.{$column} ". $id);
+                }
             }
 
             $this->echoProgress();

@@ -12,6 +12,8 @@ trait TaskerFormatter
 
     public $verbose = false;
 
+    public $progressCount = 0;
+
     /**
      * @param string $message
      */
