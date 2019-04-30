@@ -278,48 +278,53 @@ trait TaskHelpers
         foreach ($records as $record) {
             $id = $record['ID'];
             $content = $record[$column];
-            $html = new HTML5();
-            $doc = $html->loadHTML($content);
 
+            $html = new HTML5();
             $needsWrite = false;
 
-            foreach ($doc->getElementsByTagName('img') as $img) {
-                // if an image links to assets and is not rewritten to use a short code then we need to add the link
-                // to the short code ID if we can find it.
-                $src = $img->getAttribute('src');
+            try {
+                $doc = $html->loadHTML($content);
 
-                $shortcode = $img->getAttribute('data-shortcode');
-                $shortcodeId = $img->getAttribute('data-id');
+                foreach ($doc->getElementsByTagName('img') as $img) {
+                    // if an image links to assets and is not rewritten to use a short code then we need to add the link
+                    // to the short code ID if we can find it.
+                    $src = $img->getAttribute('src');
 
-                if (!$shortcodeId && !$shortcode && $src) {
-                    if (substr($src, 0, 8) === "\/assets\/" || substr($src, 0,7) === 'assets/') {
-                        if (strpos($src, '_resampled/')) {
+                    $shortcode = $img->getAttribute('data-shortcode');
+                    $shortcodeId = $img->getAttribute('data-id');
 
-                            $parts = explode('/', $src);
+                    if (!$shortcodeId && !$shortcode && $src) {
+                        if (substr($src, 0, 8) === "\/assets\/" || substr($src, 0,7) === 'assets/') {
+                            if (strpos($src, '_resampled/')) {
 
-                            $file = File::get()->filter([
-                                'Filename:PartialMatch:nocase' => $parts[count($parts) -1]
-                            ])->first();
-                        } else {
-                            $file = File::get()->filter('Filename:PartialMatch:nocase', $src)->first();
+                                $parts = explode('/', $src);
+
+                                $file = File::get()->filter([
+                                    'Filename:PartialMatch:nocase' => $parts[count($parts) -1]
+                                ])->first();
+                            } else {
+                                $file = File::get()->filter('Filename:PartialMatch:nocase', $src)->first();
+                            }
+
+                            // find the correct ID for the file and attach it to the image if we can.
+                            if ($file) {
+                                $img->setAttribute('data-shortcode', 'image');
+                                $img->setAttribute('data-id', $file->ID);
+
+                                $needsWrite = true;
+                            }
                         }
+                    } else if (strpos($src, '_resampled/') && $shortcodeId) {
+                        $file = File::get()->byId($shortcodeId);
 
-                        // find the correct ID for the file and attach it to the image if we can.
                         if ($file) {
-                            $img->setAttribute('data-shortcode', 'image');
-                            $img->setAttribute('data-id', $file->ID);
-
                             $needsWrite = true;
+                            $img->setAttribute('src', $file->getURL());
                         }
-                    }
-                } else if (strpos($src, '_resampled/') && $shortcodeId) {
-                    $file = File::get()->byId($shortcodeId);
-
-                    if ($file) {
-                        $needsWrite = true;
-                        $img->setAttribute('src', $file->getURL());
                     }
                 }
+            } catch (Exception $e) {
+                $this->echoWarning($e->getMessage());
             }
 
             if ($needsWrite) {
@@ -331,9 +336,16 @@ trait TaskHelpers
                 if ($this->verbose) {
                     $this->echoSuccess("Updated {$table}.{$column} ". $id);
                 }
-            }
+            } else {
 
+            }
+            
             $this->echoProgress();
+        }
+
+        // if a live table exists, then also update that directly
+        if ($this->hasTable($table . '_Live')) {
+            $this->updateFilePathLinks($table . '_Live', $column);
         }
     }
 
