@@ -71,4 +71,12 @@ SilverStripe\CMS\Model\SiteTree:
 Schema version is stored on SiteConfig, if a project has a Schema version less
 than the value provided here, `tasker` will run the provided `migration_class`.
 
+If you have a series of BuildTask jobs to execute (such as a `Solr_Reindex`) 
+then provide the class names under the key `tasker_jobs`.
 
+```
+SilverStripe\CMS\Model\SiteTree:
+  tasker_jobs: 
+    - 'SilverStripe\FullTextSearch\Solr\Tasks\Solr_Configure'
+    - 'SilverStripe\FullTextSearch\Solr\Tasks\Solr_Reindex' 
+```
