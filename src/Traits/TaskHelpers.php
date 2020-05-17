@@ -10,6 +10,7 @@ use SilverStripe\Versioned\Versioned;
 use Masterminds\HTML5;
 use SilverStripe\Assets\File;
 use Exception;
+use SilverStripe\Core\ClassInfo;
 
 trait TaskHelpers
 {
@@ -62,7 +63,7 @@ trait TaskHelpers
                     if (isset($mapping[$k])) {
                         if (is_array($mapping[$k])) {
                             foreach ($mapping[$k] as $dd) {
-                                $instance->{$dd} = $v;
+                                $baseRecord->{$dd} = $v;
                             }
                         } else {
                             $d = $mapping[$k];
@@ -77,7 +78,7 @@ trait TaskHelpers
                 }
 
                 if ($callback) {
-                    $callback($instance);
+                    $callback($baseRecord);
                 }
 
                 try {
@@ -339,7 +340,7 @@ trait TaskHelpers
             } else {
 
             }
-            
+
             $this->echoProgress();
         }
 
@@ -348,6 +349,63 @@ trait TaskHelpers
             $this->updateFilePathLinks($table . '_Live', $column);
         }
     }
+
+     /**
+     * Migrate data from a column on a table to another column on potentially
+     * another table. Automatically handles versioned and live tables.
+     *
+     * Deletes the column once the data has been migrated.
+     *
+     * Assumes that the record ID's will match (i.e. for subclasses)
+     *
+     * @param string $columnFrom
+     * @param string $tableFrom
+     * @param string $columnTo
+     * @param string $tableTo
+     */
+    protected function migrateDataColumnTo($columnFrom, $tableFrom, $columnTo, $tableTo)
+    {
+        if (!$this->hasTable($tableFrom) || !$this->hasTable($tableTo)) {
+            if ($this->verbose) {
+                $this->echoMessage($tableFrom. ' does not exist, skipping migrate for '. $columnFrom);
+            }
+
+            $this->echoProgress();
+
+            return;
+        }
+
+        $result = DB::query(sprintf("SHOW COLUMNS FROM `%s` LIKE '%s'", $tableFrom, $columnFrom))->value();
+
+        if ($result) {
+            $records = DB::query(sprintf("SELECT * FROM `%s`", $tableFrom));
+
+            while ($record = $records->nextRecord()) {
+                DB::query(
+                    sprintf("UPDATE %s SET %s = '%s' WHERE ID = %s",
+                    $tableTo,
+                    $columnTo,
+                    Convert::raw2sql($record[$columnFrom]),
+                    $record['ID']
+                ));
+            }
+
+            // we shouldn't delete any data.
+            // $this->performQuery(sprintf('ALTER TABLE %s DROP COLUMN `%s`', $tableFrom, $columnFrom));
+
+            // check to see if Live and Versions of the table exists and if they do, then handle those.
+            $tables = DB::table_list();
+
+            if (isset($tables[$tableFrom.'_live'])) {
+                $this->migrateDataColumnTo($columnFrom, $tableFrom.'_Live', $columnTo, $tableTo.'_Live');
+            }
+
+            if (isset($tables[$tableFrom.'_versions'])) {
+                $this->migrateDataColumnTo($columnFrom, $tableFrom.'_Versions', $columnTo, $tableTo.'_Versions');
+            }
+        }
+    }
+
 
     /**
      * For things like invalid values in an enum you get a blank value. Not null
