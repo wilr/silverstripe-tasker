@@ -436,4 +436,23 @@ trait TaskHelpers
         }
     }
 
+    /**
+     * Corrects a particular page class name
+     *
+     * @param int $id
+     * @param string $newClassName
+     */
+    public function correctPageClass ($id, $newClassName)
+    {
+        $record = SiteTree::get()->byId($id);
+
+        if ($record) {
+            $updatedInstance = $record->newClassInstance($newClassName);
+            $updatedInstance->write();
+
+            if ($updatedInstance->hasMethod('publishRecursive') && $record->isPublished()) {
+                $updatedInstance->publishRecursive();
+            }
+        }
+    }
 }
