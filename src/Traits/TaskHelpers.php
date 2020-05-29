@@ -375,13 +375,13 @@ trait TaskHelpers
             return;
         }
 
-        $result = DB::query(sprintf("SHOW COLUMNS FROM `%s` LIKE '%s'", $tableFrom, $columnFrom))->value();
+        $result = $this->query(sprintf("SHOW COLUMNS FROM `%s` LIKE '%s'", $tableFrom, $columnFrom))->value();
 
         if ($result) {
-            $records = DB::query(sprintf("SELECT * FROM `%s`", $tableFrom));
+            $records = $this->query(sprintf("SELECT * FROM `%s`", $tableFrom));
 
             while ($record = $records->nextRecord()) {
-                DB::query(
+                $this->query(
                     sprintf("UPDATE %s SET %s = '%s' WHERE ID = %s",
                     $tableTo,
                     $columnTo,
@@ -390,17 +390,14 @@ trait TaskHelpers
                 ));
             }
 
-            // we shouldn't delete any data.
-            // $this->performQuery(sprintf('ALTER TABLE %s DROP COLUMN `%s`', $tableFrom, $columnFrom));
-
             // check to see if Live and Versions of the table exists and if they do, then handle those.
             $tables = DB::table_list();
 
-            if (isset($tables[$tableFrom.'_live'])) {
+            if (isset($tables[strtolower($tableFrom).'_live'])) {
                 $this->migrateDataColumnTo($columnFrom, $tableFrom.'_Live', $columnTo, $tableTo.'_Live');
             }
 
-            if (isset($tables[$tableFrom.'_versions'])) {
+            if (isset($tables[strtolower($tableFrom).'_versions'])) {
                 $this->migrateDataColumnTo($columnFrom, $tableFrom.'_Versions', $columnTo, $tableTo.'_Versions');
             }
         }
@@ -420,11 +417,11 @@ trait TaskHelpers
     protected function setInvalidEnumValuesTo ($table, $column, $defaultValue)
     {
         if ($this->hasTable($table)) {
-            $records = $this->performQuery("SELECT * FROM $table");
+            $records = $this->query("SELECT * FROM $table");
 
             foreach ($records as $row) {
                 if (!$row[$column]) {
-                    $this->performQuery(sprintf(
+                    $this->query(sprintf(
                         "UPDATE $table SET $column = '%s' WHERE ID = %s",
                         $defaultValue,
                         $row['ID']
@@ -446,12 +443,62 @@ trait TaskHelpers
     {
         $record = SiteTree::get()->byId($id);
 
-        if ($record) {
+        if ($record && $record->ClassName !== $newClassName) {
             $updatedInstance = $record->newClassInstance($newClassName);
             $updatedInstance->write();
 
             if ($updatedInstance->hasMethod('publishRecursive') && $record->isPublished()) {
                 $updatedInstance->publishRecursive();
+            }
+        }
+    }
+
+    /**
+     * @param string $table
+     * @param string $oldColumn
+     * @param string $newColumn
+     * @param string $force
+     */
+    protected function renameColumn ($table, $oldColumn, $newColumn, $force = false)
+    {
+        if (!$this->hasTable($table)) {
+            if ($this->verbose) {
+                $this->echoMessage($table . ' does not exist, skipping column rename for '. $oldColumn);
+            }
+
+            $this->echoProgress();
+
+            return;
+        }
+
+        $result = DB::query(sprintf("SHOW COLUMNS FROM `%s` LIKE '%s'", $table, $oldColumn))->value();
+
+        if ($result) {
+            if ($force) {
+                $existing = DB::query(sprintf("SHOW COLUMNS FROM `%s` LIKE '%s'", $table, $newColumn))->value();
+
+                if ($existing) {
+                    $this->query(sprintf('ALTER TABLE %s DROP COLUMN `%s`', $table, $newColumn));
+                }
+            }
+
+            $this->query(sprintf('ALTER TABLE %s CHANGE COLUMN `%s` `%s`  VARCHAR(255)', $table, $oldColumn, $newColumn));
+        }
+    }
+
+     /**
+     * Archive any pages that have been orphaned
+     */
+    public function removePagesOnLiveNotOnDraft()
+    {
+        $pages = DB::query('SELECT DISTINCT ID FROM SiteTree_Live WHERE (SELECT COUNT(*) FROM SiteTree WHERE SiteTree_Live.ID = SiteTree.ID) < 1 AND ParentID = 0 ORDER BY ID ASC')->column();
+
+        if (count($pages) > 0) {
+            $this->echoMessage(count($pages) . ' found on live, not on draft. Removing');
+
+            foreach ($pages as $pageId) {
+                $this->archivePage($pageId);
+                $this->echoProgress();
             }
         }
     }
