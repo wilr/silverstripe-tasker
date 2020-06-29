@@ -179,28 +179,11 @@ trait TaskHelpers
             $forceDelete = true;
         } elseif ($page) {
             try {
-                // page ondelete automatically deletes the stageChildren
-                if (!$page->isOnDraftOnly()) {
-                    if ($this->verbose) {
-                        $this->echoMessage('Deleting #'. $page->ID . ' '. $page->Title . ' from live');
-                    }
-
-                    $page->deleteFromStage('Live');
-                }
-
-                if (!$page->isOnLiveOnly()) {
-                    if ($this->verbose) {
-                        $this->echoMessage('Deleting #'. $page->ID . ' '. $page->Title . ' from draft');
-                    }
-
-                    $page->deleteFromStage('Stage');
-                }
-
                 if ($this->verbose) {
-                    $this->echoMessage('Deleting #'. $page->ID . ' '. $page->Title);
+                    $this->echoMessage('Archiving #'. $page->ID . ' '. $page->ClassName . ' this may take some time..');
                 }
 
-                $page->delete();
+                $page->doArchive();
             } catch (Exception $e) {
                 $this->echoWarning('Exception archiving page, opting for force.'. $e->getMessage());
 
