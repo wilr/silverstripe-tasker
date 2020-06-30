@@ -363,7 +363,7 @@ trait TaskHelpers
         if ($result) {
             $records = $this->query(sprintf("SELECT * FROM `%s`", $tableFrom));
 
-            while ($record = $records->nextRecord()) {
+            foreach ($records as $record) {
                 $this->query(
                     sprintf("UPDATE %s SET %s = '%s' WHERE ID = %s",
                     $tableTo,
