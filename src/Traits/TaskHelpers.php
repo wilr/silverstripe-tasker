@@ -51,7 +51,7 @@ trait TaskHelpers
                     }
                 }
 
-                if ($baseRecord->hasMethod('publishRecursive') && $baseRecord->isPublished()) {
+                if ($baseRecord->hasMethod('publishRecursive') && $baseRecord->hasMethod('isPublished') && $baseRecord->isPublished()) {
                     $publish = true;
                 } else {
                     $publish = false;
@@ -430,7 +430,7 @@ trait TaskHelpers
             $updatedInstance = $record->newClassInstance($newClassName);
             $updatedInstance->write();
 
-            if ($updatedInstance->hasMethod('publishRecursive') && $record->isPublished()) {
+            if ($updatedInstance->hasMethod('publishRecursive') && $record->hasMethod('isPublished') && $record->isPublished()) {
                 $updatedInstance->publishRecursive();
             }
         }
