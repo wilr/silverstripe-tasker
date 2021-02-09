@@ -138,6 +138,14 @@ trait TaskHelpers
         return DB::query($sql);
     }
 
+
+    protected function dropTable($table)
+    {
+        if ($this->hasTable($table)) {
+            DB::query('DROP TABLE '. $table);
+        }
+    }
+
     protected function tableHasCol($table, $col)
     {
         if (!$this->hasTable($table)) {
