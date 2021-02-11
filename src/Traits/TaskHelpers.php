@@ -22,6 +22,7 @@ trait TaskHelpers
      * @param string $newClass
      * @param array $mapping
      * @param callable $callback
+     * @param boolean $insert
      */
     public function migrateTableToExistingTable($tableName, $newClass, $mapping = [], $callback = null, $insert = true)
     {
@@ -42,7 +43,10 @@ trait TaskHelpers
                     if (!$baseRecord) {
                         if ($insert) {
                             $baseRecord = $newClass::create();
-                            $baseRecord->setField('ID', $record['ID']);
+
+                            if (isset($record['ID'])) {
+                                $baseRecord->setField('ID', $record['ID']);
+                            }
                         } else {
                             continue;
                         }
@@ -472,8 +476,11 @@ trait TaskHelpers
                     $this->query(sprintf('ALTER TABLE %s DROP COLUMN `%s`', $table, $newColumn));
                 }
             }
-
-            $this->query(sprintf('ALTER TABLE %s CHANGE COLUMN `%s` `%s`  VARCHAR(255)', $table, $oldColumn, $newColumn));
+            try {
+                $this->query(sprintf('ALTER TABLE %s CHANGE COLUMN `%s` `%s`  VARCHAR(255)', $table, $oldColumn, $newColumn));
+            } catch (Exception $e) {
+                return false;
+            }
         }
     }
 
