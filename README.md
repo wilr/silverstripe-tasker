@@ -1,10 +1,7 @@
 # silverstripe-tasker
 
-A collection of SilverStripe `BuildTask` classes, helpers and traits for
-managing SilverStripe installations, formatting and running dev tasks.
-
-Work in progress while I adapt and grow the code to handle various project
-specific implementations of these tasks and helpers.
+A collection of Silverstripe `BuildTask` classes and standard helpers for
+managing a migration workflow (i.e version 3 to 4 upgrades).
 
 ## Installation
 
@@ -29,7 +26,11 @@ class MyAppUpgradeTask extends BuildTask
     public function run()
     {
         $this->echoHeading('My Heading');
-
+        
+        $this->archivePage(10);
+        
+        // any other tasks as below.
+        
         if ($wrong) {
             $this->echoWarning('Shows a warning message');
         } else {
