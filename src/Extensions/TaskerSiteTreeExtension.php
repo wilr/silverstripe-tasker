@@ -2,6 +2,7 @@
 
 namespace Wilr\SilverStripe\Tasker\Extensions;
 
+use Exception;
 use SilverStripe\ORM\DB;
 use SilverStripe\ORM\DataExtension;
 use SilverStripe\Core\Injector\Injector;
@@ -15,12 +16,10 @@ use SilverStripe\Dev\Tasks\MigrateFileTask;
 use SilverStripe\Assets\File;
 use Symbiote\QueuedJobs\Jobs\RunBuildTaskJob;
 use Symbiote\QueuedJobs\Services\QueuedJobService;
-use Wilr\SilverStripe\Tasker\Traits\TaskHelpers;
 use Wilr\SilverStripe\Tasker\Traits\TaskerFormatter;
 
 class TaskerSiteTreeExtension extends DataExtension
 {
-    use TaskHelpers;
     use TaskerFormatter;
 
     private $run = false;
@@ -37,7 +36,7 @@ class TaskerSiteTreeExtension extends DataExtension
     {
         Environment::increaseMemoryLimitTo(-1);
         Environment::increaseTimeLimitTo(-1);
-        
+
         // script only needs to run once per dev/build.
         if ($this->run) {
             return;
@@ -55,7 +54,6 @@ class TaskerSiteTreeExtension extends DataExtension
                 $inst = Injector::inst()->create($job);
 
                 if (!$inst->isEnabled()) {
-                    $message('The task is disabled');
                     return;
                 }
 
@@ -63,7 +61,7 @@ class TaskerSiteTreeExtension extends DataExtension
                 $jobID = Injector::inst()->get(QueuedJobService::class)->queueJob($job);
 
                 DB::alteration_message(sprintf(
-                    '[Tasker] Migration queuing task %s # %s', 
+                    '[Tasker] Migration queuing task %s # %s',
                     $inst->getTitle(),
                     $jobID
                 ));
@@ -131,16 +129,6 @@ class TaskerSiteTreeExtension extends DataExtension
             // trigger the image update
             if (Config::inst()->get(SiteTree::class, 'tasker_should_migrate_files')) {
                 DB::alteration_message('[Tasker] Syncing files', 'created');
-
-                // correct any PDF files to the
-                if ($this->tableHasCol('File', 'Filename')) {
-                    DB::query(sprintf("
-                        UPDATE File SET ClassName = '%s'
-                        WHERE Filename LIKE '%s'",
-                        File::class,
-                        '%.pdf'
-                    ));
-                }
 
                 try {
                     $task = new MigrateFileTask();
