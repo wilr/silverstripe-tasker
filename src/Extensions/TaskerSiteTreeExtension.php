@@ -104,15 +104,15 @@ class TaskerSiteTreeExtension extends DataExtension
                     $upgrader = Injector::inst()->create($className);
 
                     try {
-                        $upgrader->run(new HTTPRequest('GET', '/', [
-                            'quiet' => true
-                        ]));
-
                         // update schema
                         DB::query(sprintf(
                             'UPDATE SiteConfig SET SchemaVersion = %s',
                             $latestSchema
                         ));
+
+                        $upgrader->run(new HTTPRequest('GET', '/', [
+                            'quiet' => true
+                        ]));
 
                         DB::alteration_message('[Tasker] Upgraded project to schema '. $latestSchema, 'created');
                     } catch (Exception $e) {

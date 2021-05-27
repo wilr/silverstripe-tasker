@@ -269,12 +269,11 @@ trait TaskHelpers
      */
     public function updateFilePathLinks($table, $column)
     {
-        $records = DB::query("SELECT ID, $column FROM $table WHERE $column LIKE '%assets/%'");
+        $records = DB::query("SELECT ID, $column FROM $table WHERE $column LIKE '%_resampled/%'")->map();
 
-        foreach ($records as $record) {
-            $id = $record['ID'];
-            $content = $record[$column];
+        $this->echoWarning(count($records) . ' to be updated with _resampled text');
 
+        foreach ($records as $id => $content) {
             $html = new HTML5();
             $needsWrite = false;
 
@@ -290,25 +289,23 @@ trait TaskHelpers
                     $shortcodeId = $img->getAttribute('data-id');
 
                     if (!$shortcodeId && !$shortcode && $src) {
-                        if (substr($src, 0, 8) === "\/assets\/" || substr($src, 0,7) === 'assets/') {
-                            if (strpos($src, '_resampled/')) {
+                        if (strpos($src, '_resampled/')) {
+                            // remove /_resampled/
+                            $correctedFileName = preg_replace('/_resampled\/([A-Z])\w+[-|\/]/', '', $src);
 
-                                $parts = explode('/', $src);
+                            $file = File::get()->filter([
+                                'Filename:PartialMatch:nocase' => $correctedFileName
+                            ])->first();
+                        } else {
+                            $file = File::get()->filter('Filename:PartialMatch:nocase', $src)->first();
+                        }
 
-                                $file = File::get()->filter([
-                                    'Filename:PartialMatch:nocase' => $parts[count($parts) -1]
-                                ])->first();
-                            } else {
-                                $file = File::get()->filter('Filename:PartialMatch:nocase', $src)->first();
-                            }
+                        // find the correct ID for the file and attach it to the image if we can.
+                        if ($file) {
+                            $img->setAttribute('data-shortcode', 'image');
+                            $img->setAttribute('data-id', $file->ID);
 
-                            // find the correct ID for the file and attach it to the image if we can.
-                            if ($file) {
-                                $img->setAttribute('data-shortcode', 'image');
-                                $img->setAttribute('data-id', $file->ID);
-
-                                $needsWrite = true;
-                            }
+                            $needsWrite = true;
                         }
                     } else if (strpos($src, '_resampled/') && $shortcodeId) {
                         $file = File::get()->byId($shortcodeId);
@@ -324,6 +321,8 @@ trait TaskHelpers
             }
 
             if ($needsWrite) {
+                $this->echoProgress();
+
                 DB::prepared_query("UPDATE \"$table\" SET \"$column\" = ? WHERE \"ID\" = ?", [
                     $html->saveHTML($doc),
                     $id
@@ -333,10 +332,8 @@ trait TaskHelpers
                     $this->echoSuccess("Updated {$table}.{$column} ". $id);
                 }
             } else {
-
+                $this->echoProgress();
             }
-
-            $this->echoProgress();
         }
 
         // if a live table exists, then also update that directly
