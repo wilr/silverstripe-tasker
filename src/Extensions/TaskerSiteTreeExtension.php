@@ -13,7 +13,6 @@ use SilverStripe\Control\Director;
 use SilverStripe\Control\HTTPRequest;
 use SilverStripe\Core\Environment;
 use SilverStripe\Dev\Tasks\MigrateFileTask;
-use SilverStripe\Assets\File;
 use Symbiote\QueuedJobs\Jobs\RunBuildTaskJob;
 use Symbiote\QueuedJobs\Services\QueuedJobService;
 use Wilr\SilverStripe\Tasker\Traits\TaskerFormatter;
@@ -26,10 +25,8 @@ class TaskerSiteTreeExtension extends DataExtension
 
     public function isSilverStripeHosted()
     {
-        return (
-            Environment::getEnv('CWP_ENVIRONMENT') ||
-            Environment::getEnv('PLATFORM_ENVIRONMENT')
-        );
+        return (Environment::getEnv('CWP_ENVIRONMENT') ||
+            Environment::getEnv('PLATFORM_ENVIRONMENT'));
     }
 
     public function requireDefaultRecords()
@@ -82,7 +79,7 @@ class TaskerSiteTreeExtension extends DataExtension
 
         $always = Config::inst()->get(SiteTree::class, 'run_update_schema_always');
 
-        if ($always || $this->isSilverStripeHosted() || !Director::isDev() || Controller::curr()->getRequest()->getVar('doCheckSchema')) {
+        if ($always || $this->isSilverStripeHosted() || !Director::isDev() || (Controller::has_curr() && Controller::curr()->getRequest()->getVar('doCheckSchema'))) {
             // check to see if the upgrade script has run. If it has run then
             // ignore the upgrader, if it hasn't updated to the latest version
             // then trigger the update.
@@ -99,7 +96,7 @@ class TaskerSiteTreeExtension extends DataExtension
 
                 // run upgrade
                 if ($className = Config::inst()->get(SiteTree::class, 'migration_class')) {
-                    DB::alteration_message('[Tasker] Upgrading project to schema '. $latestSchema .'....', 'created');
+                    DB::alteration_message('[Tasker] Upgrading project to schema ' . $latestSchema . '....', 'created');
 
                     $upgrader = Injector::inst()->create($className);
 
@@ -114,16 +111,16 @@ class TaskerSiteTreeExtension extends DataExtension
                             'quiet' => true
                         ]));
 
-                        DB::alteration_message('[Tasker] Upgraded project to schema '. $latestSchema, 'created');
+                        DB::alteration_message('[Tasker] Upgraded project to schema ' . $latestSchema, 'created');
                     } catch (Exception $e) {
-                        DB::alteration_message('[Tasker] Error upgrading project to schema: '. $e->getMessage(), 'error');
+                        DB::alteration_message('[Tasker] Error upgrading project to schema: ' . $e->getMessage(), 'error');
                     }
                 } else {
-                    DB::alteration_message('[Tasker] Could not upgrade project to schema '. $latestSchema
-                    .' from '. $currentSchema. '. No migration_class provided', 'deleted');
+                    DB::alteration_message('[Tasker] Could not upgrade project to schema ' . $latestSchema
+                        . ' from ' . $currentSchema . '. No migration_class provided', 'deleted');
                 }
             } else {
-                DB::alteration_message('[Tasker] Project already running schema '. $latestSchema, 'created');
+                DB::alteration_message('[Tasker] Project already running schema ' . $latestSchema, 'created');
             }
 
             // trigger the image update
@@ -137,7 +134,7 @@ class TaskerSiteTreeExtension extends DataExtension
                         'quiet' => true
                     ]));
                 } catch (Exception $e) {
-                    DB::alteration_message('[Tasker] error syncing files '. $e->getMessage(), 'created');
+                    DB::alteration_message('[Tasker] error syncing files ' . $e->getMessage(), 'created');
                 }
             }
         } else {
